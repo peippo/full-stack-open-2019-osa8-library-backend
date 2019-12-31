@@ -1,4 +1,4 @@
-const { ApolloServer, gql } = require("apollo-server");
+const { ApolloServer, UserInputError, gql } = require("apollo-server");
 const mongoose = require("mongoose");
 const config = require("./utils/config");
 const uuid = require("uuid/v1");
@@ -72,20 +72,71 @@ const resolvers = {
 	},
 	Mutation: {
 		addBook: async (root, args) => {
+			if (args.title.length <= 3) {
+				throw new UserInputError(
+					"Title must be at least 3 characters",
+					{
+						invalidArgs: args.title
+					}
+				);
+			}
+
+			if (args.author.length <= 4) {
+				throw new UserInputError(
+					"Author name must be at least 4 characters",
+					{
+						invalidArgs: args.author
+					}
+				);
+			}
+
+			const bookExists = await Book.findOne({ title: args.title });
+
+			if (bookExists) {
+				throw new UserInputError("Title must be unique", {
+					invalidArgs: args.title
+				});
+			}
+
 			let author = await Author.findOne({ name: args.author });
 
 			if (author === null) {
 				author = new Author({ name: args.author });
-				author.save();
+
+				try {
+					await author.save();
+				} catch (error) {
+					throw new UserInputError(error.message, {
+						invalidArgs: args
+					});
+				}
 			}
 
 			const book = new Book({ ...args, author });
-			return book.save();
+
+			try {
+				await book.save();
+			} catch (error) {
+				throw new UserInputError(error.message, {
+					invalidArgs: args
+				});
+			}
+
+			return book;
 		},
 		editAuthor: async (roots, args) => {
 			const author = await Author.findOne({ name: args.name });
 			author.born = args.setBornTo;
-			return author.save();
+
+			try {
+				await author.save();
+			} catch (error) {
+				throw new UserInputError(error.message, {
+					invalidArgs: args
+				});
+			}
+
+			return author;
 		}
 	}
 };

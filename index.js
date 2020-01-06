@@ -14,6 +14,7 @@ const Book = require("./models/book");
 const User = require("./models/user");
 
 mongoose.set("useFindAndModify", false);
+mongoose.set("useCreateIndex", true);
 
 console.log("Connecting to", config.MONGODB_URI);
 
@@ -88,12 +89,16 @@ const resolvers = {
 		}
 	},
 	Query: {
-		bookCount: () => Book.collection.countDocuments(),
+		bookCount: () => {
+			Book.collection.countDocuments();
+		},
 		authorCount: () => Author.collection.countDocuments(),
 		allBooks: (root, args) => {
 			return Book.find({}).populate("author");
 		},
-		allAuthors: () => Author.find({}),
+		allAuthors: async () => {
+			return await Author.find({});
+		},
 		me: (root, args, { currentUser }) => {
 			return currentUser;
 		}
